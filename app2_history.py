@@ -28,10 +28,15 @@ st.caption("최대 10개의 세션과 세션당 최대 100개 대화(내채팅+A
 # [단계 1] SQLite 데이터베이스 조회 헬퍼 함수
 # ==============================================================================
 def get_all_sessions() -> list[dict[str, str]]:
-    """저장된 모든 세션 목록을 최신순으로 반환합니다."""
+    """대화 메시지가 존재하는 유효 세션 목록을 최신순으로 반환합니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT session_id, title, created_at FROM sessions ORDER BY created_at DESC")
+    cursor.execute("""
+        SELECT s.session_id, s.title, s.created_at
+        FROM sessions s
+        WHERE EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.session_id)
+        ORDER BY s.created_at DESC
+    """)
     rows = cursor.fetchall()
     conn.close()
     return [{"session_id": r[0], "title": r[1], "created_at": r[2]} for r in rows]

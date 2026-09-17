@@ -60,11 +60,21 @@ def init_db() -> None:
     conn.close()
 
 
+def get_current_local_time() -> str:
+    """현재 한국 로컬 시간을 YYYY-MM-DD HH:MM:SS 포맷 문자열로 반환합니다."""
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
 def get_all_sessions() -> list[dict[str, str]]:
-    """저장된 모든 세션 목록을 최신순으로 가져옵니다."""
+    """대화 메시지가 존재하는 유효 세션 목록을 최신순으로 가져옵니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT session_id, title, created_at FROM sessions ORDER BY created_at DESC")
+    cursor.execute("""
+        SELECT s.session_id, s.title, s.created_at
+        FROM sessions s
+        WHERE EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.session_id)
+        ORDER BY s.created_at DESC
+    """)
     rows = cursor.fetchall()
     conn.close()
 
@@ -82,7 +92,6 @@ def prune_old_sessions() -> None:
     """저장된 세션이 10개를 초과할 경우 오래된 세션부터 자동 삭제합니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # 최신 10개를 제외한 나머지 오래된 세션 조회
     cursor.execute("""
         SELECT session_id FROM sessions
         ORDER BY created_at DESC
@@ -100,25 +109,37 @@ def prune_old_sessions() -> None:
     conn.close()
 
 
-def create_new_session(title: str = "") -> str:
-    """새로운 채팅 세션을 생성하고 10개 초과 시 오래된 세션을 정리합니다."""
-    now_str = datetime.now().strftime("%m/%d %H:%M:%S")
-    session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
-    session_title = title if title else f"대화 {now_str}"
+def generate_new_session_id() -> str:
+    """메모리상에 사용할 새로운 세션 식별자를 생성합니다 (DB 미저장)."""
+    return f"session_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
 
+
+def ensure_session_in_db(session_id: str, first_prompt: str = "") -> None:
+    """
+    세션이 DB에 없으면 첫 질문 입력 시점에 로컬 시간으로 생성합니다 (지연 생성).
+    """
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO sessions (session_id, title) VALUES (?, ?)",
-        (session_id, session_title),
-    )
-    conn.commit()
-    conn.close()
+    cursor.execute("SELECT 1 FROM sessions WHERE session_id = ?", (session_id,))
+    exists = cursor.fetchone()
 
-    # 세션 10개 초과 시 자동 정리
-    prune_old_sessions()
-    logger.info("새 세션 생성 완료: %s (%s)", session_id, session_title)
-    return session_id
+    if not exists:
+        now_local = get_current_local_time()
+        title_summary = first_prompt[:18] + ("..." if len(first_prompt) > 18 else "")
+        session_title = title_summary if title_summary else f"대화 {now_local[5:16]}"
+
+        cursor.execute(
+            "INSERT INTO sessions (session_id, title, created_at) VALUES (?, ?, ?)",
+            (session_id, session_title, now_local),
+        )
+        conn.commit()
+        logger.info("첫 대화 발생으로 세션 DB 정식 등록: %s (%s)", session_id, session_title)
+        conn.close()
+
+        # 세션 수 10개 초과 시 오래된 세션 정리
+        prune_old_sessions()
+    else:
+        conn.close()
 
 
 def load_session_messages(session_id: str) -> list[dict[str, str]]:
@@ -168,12 +189,13 @@ def prune_session_messages(session_id: str) -> None:
 
 
 def save_session_message(session_id: str, role: str, content: str) -> None:
-    """새로운 메시지를 특정 세션에 저장하고 100개 대화 초과 시 오래된 대화를 정리합니다."""
+    """새로운 메시지를 한국 로컬 시간으로 DB에 저장하고 100개 대화 초과 시 오래된 대화를 정리합니다."""
+    now_local = get_current_local_time()
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO messages (session_id, role, content, files) VALUES (?, ?, ?, '')",
-        (session_id, role, content),
+        "INSERT INTO messages (session_id, role, content, files, created_at) VALUES (?, ?, ?, '', ?)",
+        (session_id, role, content, now_local),
     )
     conn.commit()
     conn.close()
@@ -182,35 +204,17 @@ def save_session_message(session_id: str, role: str, content: str) -> None:
     prune_session_messages(session_id)
 
 
-def update_session_title_if_default(session_id: str, first_prompt: str) -> None:
-    """첫 질문 내용을 기반으로 세션 제목을 직관적으로 업데이트합니다."""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT title FROM sessions WHERE session_id = ?", (session_id,))
-    row = cursor.fetchone()
-    if row and row[0].startswith("대화 "):
-        new_title = first_prompt[:18] + ("..." if len(first_prompt) > 18 else "")
-        cursor.execute(
-            "UPDATE sessions SET title = ? WHERE session_id = ?",
-            (new_title, session_id),
-        )
-        conn.commit()
-    conn.close()
-
-
 # ==============================================================================
-# [단계 2] DB 초기화 및 기본 활성 세션 보장
+# [단계 2] DB 초기화 및 기본 활성 세션 보장 (지연 생성)
 # ==============================================================================
 init_db()
 all_sessions = get_all_sessions()
 
-if not all_sessions:
-    new_id = create_new_session()
-    all_sessions = get_all_sessions()
-    st.session_state["current_session_id"] = new_id
-
-if "current_session_id" not in st.session_state or not any(s["session_id"] == st.session_state["current_session_id"] for s in all_sessions):
-    st.session_state["current_session_id"] = all_sessions[0]["session_id"]
+if "current_session_id" not in st.session_state:
+    if all_sessions:
+        st.session_state["current_session_id"] = all_sessions[0]["session_id"]
+    else:
+        st.session_state["current_session_id"] = generate_new_session_id()
 
 
 # ==============================================================================
@@ -241,17 +245,22 @@ with st.sidebar:
         index=0,
     )
 
-    # 3. 세션 관리 (새 대화 버튼 + 대화 목록 드롭다운 결합)
+    # 3. 세션 관리 (새 대화 버튼 + 대화 목록 드롭다운 결합, 지연 생성)
     st.caption("💬 **채팅 세션 관리 (최대 10개)**")
     if st.button("➕ 새 대화 시작", use_container_width=True):
-        new_sid = create_new_session()
-        st.session_state["current_session_id"] = new_sid
+        st.session_state["current_session_id"] = generate_new_session_id()
         st.rerun()
 
+    current_sid = st.session_state["current_session_id"]
     session_id_list = [s["session_id"] for s in all_sessions]
     session_label_map = {s["session_id"]: f"{s['title']}" for s in all_sessions}
 
-    current_idx = session_id_list.index(st.session_state["current_session_id"]) if st.session_state["current_session_id"] in session_id_list else 0
+    # 아직 메시지가 없는 신규 세션일 경우 임시 표시
+    if current_sid not in session_id_list:
+        session_id_list = [current_sid] + session_id_list
+        session_label_map[current_sid] = "✨ 새 대화 (작성 중)"
+
+    current_idx = session_id_list.index(current_sid)
 
     chosen_session_id = st.selectbox(
         "대화 목록",
@@ -306,7 +315,10 @@ if not user_api_key:
 user_prompt = st.chat_input("메시지를 입력하세요 (Enter로 전송)...")
 
 if user_prompt:
-    # 1. 사용자 질문 화면 표시 및 DB 저장
+    # 1. DB에 세션이 없으면 첫 질문으로 정식 등록 (로컬 시간 자동 적용)
+    ensure_session_in_db(active_session_id, user_prompt)
+
+    # 2. 사용자 질문 화면 표시 및 DB 저장 (로컬 시간)
     with st.chat_message("user"):
         st.write(user_prompt)
 
@@ -315,10 +327,6 @@ if user_prompt:
         role="user",
         content=user_prompt,
     )
-
-    # 첫 메시지인 경우 세션 제목을 알기 쉽게 갱신
-    if len(current_messages) == 0:
-        update_session_title_if_default(active_session_id, user_prompt)
 
     # 2. OpenAI API 요청 메시지 포맷팅
     api_messages = [{"role": m["role"], "content": m["content"]} for m in current_messages]
