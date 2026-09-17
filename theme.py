@@ -65,32 +65,56 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] p {
     font-weight: 700 !important;
 }
 
-/* 4. 드롭다운(selectbox) 및 팝오버 목록 글씨 선명화 */
-div[data-baseweb="select"] {
+/* 4. 드롭다운(selectbox) 및 팝오버 목록 글씨 선명화 (흰색바탕에 흰색글씨 원천 방지) */
+div[data-baseweb="select"],
+div[data-baseweb="select"] > div,
+div[data-baseweb="select"] > div > div,
+[data-testid="stSelectbox"] div[data-baseweb="select"],
+[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
     background-color: #0d1527 !important;
+    background: #0d1527 !important;
     border-radius: 10px !important;
-    border: 1px solid rgba(6, 182, 212, 0.5) !important;
+    border: 1px solid rgba(6, 182, 212, 0.6) !important;
+    color: #ffffff !important;
 }
-div[data-baseweb="select"] * {
+
+div[data-baseweb="select"] span,
+div[data-baseweb="select"] p,
+div[data-baseweb="select"] div,
+[data-testid="stSelectbox"] div,
+[data-testid="stSelectbox"] span,
+[data-testid="stSelectbox"] p {
     color: #ffffff !important;
     font-weight: 600 !important;
-    background-color: transparent !important;
 }
+
 div[data-baseweb="select"] svg {
     fill: #22d3ee !important;
+    color: #22d3ee !important;
 }
-div[data-baseweb="popover"] {
+
+/* 드롭다운 열렸을 때 팝오버 목록 (BaseWeb Popover) */
+div[data-baseweb="popover"],
+div[data-baseweb="popover"] > div,
+div[data-baseweb="popover"] ul {
     background-color: #0b1120 !important;
+    background: #0b1120 !important;
     border: 1px solid rgba(6, 182, 212, 0.6) !important;
     border-radius: 10px !important;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8) !important;
 }
-div[data-baseweb="popover"] ul, div[data-baseweb="popover"] li {
+
+div[data-baseweb="popover"] li,
+div[data-baseweb="popover"] li * {
     background-color: #0b1120 !important;
     color: #ffffff !important;
     font-weight: 500 !important;
 }
-div[data-baseweb="popover"] li:hover, div[data-baseweb="popover"] li[aria-selected="true"] {
+
+div[data-baseweb="popover"] li:hover,
+div[data-baseweb="popover"] li:hover *,
+div[data-baseweb="popover"] li[aria-selected="true"],
+div[data-baseweb="popover"] li[aria-selected="true"] * {
     background-color: #1e293b !important;
     color: #22d3ee !important;
     font-weight: 700 !important;
