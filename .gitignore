@@ -1,17 +1,37 @@
-# Python
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Virtual Environments
 .venv/
+env/
+venv/
+ENV/
 
-# Environment variables
+# Sensitive Environment Variables (보안 환경변수)
 .env
+.env.*
+*.env
 
-# Database
+# Streamlit secrets & config
+.streamlit/secrets.toml
+.streamlit/
+
+# Database files (로컬 DB 및 SQLite 파일)
 *.db
 *.sqlite
 *.sqlite3
+chat_history.db
 
-# Streamlit
-.streamlit/
+# API keys, certs & credentials
+*.pem
+*.key
+*.cert
+*.crt
+credentials.json
 
+# Logs & Temporary files
+*.log
+tmp/
+temp/
