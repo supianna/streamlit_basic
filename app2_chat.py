@@ -177,20 +177,26 @@ def open_file_upload_dialog():
 with st.sidebar:
     st.header("⚙️ 챗봇 설정")
 
-    # 1. API 키 설정 (.env 우선)
+    # 1. API 키 설정 (보안 강화: 실제 키 값을 브라우저 화면/DOM에 노출하지 않음)
     env_api_key = os.getenv("OPENAI_API_KEY", "")
-    api_key = st.text_input(
-        "OpenAI API Key",
-        value=env_api_key,
-        type="password",
-        placeholder="sk-...",
-        help=".env 파일의 OPENAI_API_KEY를 자동으로 가져옵니다.",
-    )
 
     if env_api_key:
-        st.success("✅ .env 환경변수 로드 완료", icon="🔑")
+        st.success("🔒 **API 키 보안 로드 완료** (.env)")
+        custom_key = st.text_input(
+            "API 키 재설정 (선택)",
+            type="password",
+            placeholder="다른 키로 교체할 때만 입력하세요",
+            help=".env 파일의 키가 백엔드에서 안전하게 사용 중입니다.",
+        )
+        api_key = custom_key.strip() if custom_key.strip() else env_api_key
     else:
-        st.warning("⚠️ .env에 OPENAI_API_KEY가 없습니다.", icon="⚠️")
+        st.warning("⚠️ .env에 OPENAI_API_KEY가 없습니다.")
+        api_key = st.text_input(
+            "OpenAI API Key 직접 입력",
+            type="password",
+            placeholder="sk-...",
+            help="OpenAI API 키를 입력하세요.",
+        )
 
     # 2. 모델 선택 (규칙 10: gpt-5.6-luna 기본)
     model_options = [
