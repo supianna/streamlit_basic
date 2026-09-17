@@ -1,17 +1,17 @@
 """
 파일명: theme.py
-목적: 사이버 오로라 네온 테마 CSS(배경 모션 애니메이션) 및 버튼 별 팝콘 폭발 인터랙션 효과 주입
+목적: 사이버 오로라 네온 테마 CSS(고대비 가독성, 드롭다운/버튼/상단바 전수 보정) 및 버튼 별 팝콘 폭발 인터랙션 효과 주입
 """
 
 import streamlit as st
 import streamlit.components.v1 as components
 
 # ==============================================================================
-# 1. 사이버 오로라 네온 CSS 스타일 (배경 애니메이션 포함)
+# 1. 사이버 오로라 네온 CSS 스타일 (전역 가독성 및 UI 요소 완벽 보정)
 # ==============================================================================
 CYBER_AURORA_THEME_CSS: str = """
 <style>
-/* 배경 오로라 물결 애니메이션 */
+/* 1. 배경 오로라 물결 애니메이션 */
 @keyframes auroraMotion {
     0% {
         background-position: 0% 10%, 100% 90%, 50% 50%;
@@ -24,7 +24,6 @@ CYBER_AURORA_THEME_CSS: str = """
     }
 }
 
-/* 메인 배경: 은은하게 숨 쉬며 흐르는 오로라 효과 */
 .stApp {
     background-color: #05060b;
     background-image: 
@@ -36,40 +35,108 @@ CYBER_AURORA_THEME_CSS: str = """
     color: #f8fafc !important;
 }
 
-/* 전역 텍스트 가독성 고대비 보정 */
-h1, h2, h3, h4, h5, h6 {
-    color: #ffffff !important;
-    font-weight: 700 !important;
-    text-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+/* 2. 최상단 헤더 바(stHeader) 가독성 */
+header[data-testid="stHeader"] {
+    background: transparent !important;
+}
+header[data-testid="stHeader"] * {
+    color: #f8fafc !important;
+    fill: #f8fafc !important;
 }
 
-p, span, div {
-    color: #f1f5f9;
-}
-
-/* 캡션 및 서브 텍스트 가독성 강화 */
-.stCaption, small, [data-testid="stCaptionContainer"] p {
+/* 3. 탭 바(st.tabs) - 탭 헤더 글씨 선명화 */
+div[data-testid="stTabs"] button[role="tab"] {
     color: #cbd5e1 !important;
+    font-weight: 600 !important;
+    font-size: 1.05rem !important;
+    background: transparent !important;
+}
+div[data-testid="stTabs"] button[role="tab"] p {
+    color: #cbd5e1 !important;
+    font-weight: 600 !important;
+}
+div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
+    color: #22d3ee !important;
+    border-bottom-color: #22d3ee !important;
+    font-weight: 700 !important;
+}
+div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] p {
+    color: #22d3ee !important;
+    font-weight: 700 !important;
+}
+
+/* 4. 드롭다운(selectbox) 및 팝오버 목록 글씨 선명화 */
+div[data-baseweb="select"] {
+    background-color: #0d1527 !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(6, 182, 212, 0.5) !important;
+}
+div[data-baseweb="select"] * {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    background-color: transparent !important;
+}
+div[data-baseweb="select"] svg {
+    fill: #22d3ee !important;
+}
+div[data-baseweb="popover"] {
+    background-color: #0b1120 !important;
+    border: 1px solid rgba(6, 182, 212, 0.6) !important;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.8) !important;
+}
+div[data-baseweb="popover"] ul, div[data-baseweb="popover"] li {
+    background-color: #0b1120 !important;
+    color: #ffffff !important;
     font-weight: 500 !important;
 }
-
-/* 폼 및 위젯 입력 라벨을 선명한 화이트로 고정 */
-label, [data-testid="stWidgetLabel"] p, .stWidgetLabel {
-    color: #ffffff !important;
-    font-weight: 600 !important;
-}
-
-/* 메트릭 통계 카드 텍스트 */
-[data-testid="stMetricValue"] {
+div[data-baseweb="popover"] li:hover, div[data-baseweb="popover"] li[aria-selected="true"] {
+    background-color: #1e293b !important;
     color: #22d3ee !important;
-    text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
-}
-[data-testid="stMetricLabel"] p {
-    color: #e2e8f0 !important;
-    font-weight: 600 !important;
+    font-weight: 700 !important;
 }
 
-/* 사이드바 스타일 및 스크롤 방지 최적화 */
+/* 5. 모든 버튼 전수 스타일링 (흰색 버튼 및 글씨 투명 현상 완전 방지) */
+button,
+div.stButton > button,
+div[data-testid="stFormSubmitButton"] > button,
+div[data-testid="stDownloadButton"] > button,
+button[kind="secondary"],
+button[kind="primary"] {
+    background: linear-gradient(135deg, #06b6d4 0%, #38bdf8 100%) !important;
+    color: #020617 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 0 16px rgba(6, 182, 212, 0.6) !important;
+    transition: all 0.25s ease-in-out !important;
+    cursor: pointer !important;
+}
+button *,
+div.stButton > button *,
+div[data-testid="stFormSubmitButton"] > button *,
+div[data-testid="stDownloadButton"] > button * {
+    color: #020617 !important;
+    font-weight: 700 !important;
+}
+
+button:hover,
+div.stButton > button:hover,
+div[data-testid="stFormSubmitButton"] > button:hover,
+div[data-testid="stDownloadButton"] > button:hover {
+    background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 26px rgba(34, 211, 238, 0.9) !important;
+    transform: translateY(-1px) scale(1.02);
+}
+button:hover *,
+div.stButton > button:hover *,
+div[data-testid="stFormSubmitButton"] > button:hover *,
+div[data-testid="stDownloadButton"] > button:hover * {
+    color: #ffffff !important;
+}
+
+/* 6. 사이드바 스타일 및 네비게이션 링크 */
 section[data-testid="stSidebar"] {
     background-color: #080a14 !important;
     border-right: 1px solid rgba(6, 182, 212, 0.25);
@@ -85,25 +152,68 @@ section[data-testid="stSidebar"] * {
     color: #f1f5f9 !important;
 }
 
-/* 밝고 눈에 띄는 네온 버튼 (Bright Neon Button) */
-div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
-    background: linear-gradient(135deg, #06b6d4 0%, #38bdf8 100%) !important;
-    color: #030712 !important;
-    font-weight: 700 !important;
-    border: none !important;
-    border-radius: 12px !important;
-    box-shadow: 0 0 16px rgba(6, 182, 212, 0.6) !important;
-    transition: all 0.25s ease-in-out !important;
-    cursor: pointer !important;
-}
-div.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
-    background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%) !important;
+/* 사이드바 네비게이션 링크 (st.Page 링크) */
+[data-testid="stSidebarNav"] * {
     color: #ffffff !important;
-    box-shadow: 0 0 26px rgba(34, 211, 238, 0.9) !important;
-    transform: translateY(-1px) scale(1.02);
+    font-weight: 600 !important;
+}
+[data-testid="stSidebarNavLink"] {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 8px !important;
+    margin-bottom: 4px !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+[data-testid="stSidebarNavLink"]:hover {
+    background-color: rgba(6, 182, 212, 0.25) !important;
+    border-color: rgba(6, 182, 212, 0.6) !important;
+}
+[data-testid="stSidebarNavLink"][aria-current="page"] {
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.35) 0%, rgba(56, 189, 248, 0.2) 100%) !important;
+    border: 1px solid #06b6d4 !important;
 }
 
-/* 사용자(User) 채팅 버블: 시안 네온 글로우 */
+/* 7. 전역 텍스트, 캡션 및 라벨 고대비 보정 */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+}
+
+p, span, div {
+    color: #f1f5f9;
+}
+
+.stCaption, small, [data-testid="stCaptionContainer"] p {
+    color: #cbd5e1 !important;
+    font-weight: 500 !important;
+}
+
+label, [data-testid="stWidgetLabel"] p, .stWidgetLabel {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #22d3ee !important;
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.5);
+}
+[data-testid="stMetricLabel"] p {
+    color: #e2e8f0 !important;
+    font-weight: 600 !important;
+}
+
+/* 입력 필드 (st.text_input) 배경 및 글자 */
+div[data-baseweb="input"] {
+    background-color: #0f172a !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(6, 182, 212, 0.5) !important;
+}
+div[data-baseweb="input"] input {
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+/* 사용자(User) 채팅 버블 */
 div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
     background: linear-gradient(135deg, #0891b2 0%, #0284c7 100%) !important;
     color: #ffffff !important;
@@ -117,7 +227,7 @@ div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"])
     color: #ffffff !important;
 }
 
-/* 어시스턴트(Assistant) 채팅 버블: 바이올렛 네온 림 */
+/* 어시스턴트(Assistant) 채팅 버블 */
 div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
     background: rgba(15, 17, 30, 0.85) !important;
     backdrop-filter: blur(12px) !important;

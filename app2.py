@@ -83,7 +83,7 @@ else:
     with st.sidebar:
         col_u1, col_u2 = st.columns([1.6, 1], vertical_alignment="center")
         with col_u1:
-            st.caption(f"🏷️ `{st.session_state.get('nickname', '익명')}`")
+            st.markdown(f"🏷️ **{st.session_state.get('nickname', '익명')}**님")
         with col_u2:
             if st.button("퇴장", use_container_width=True):
                 logger.info("퇴장 실행: %s", st.session_state.get("nickname"))
