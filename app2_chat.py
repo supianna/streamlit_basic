@@ -298,57 +298,60 @@ for msg in current_messages:
 
 
 # ==============================================================================
-# [단계 5] 채팅 입력 처리 (API Key 없으면 동작 차단)
+# [단계 5] 채팅 입력 처리 (API Key 등록 안내 및 대화 실행)
 # ==============================================================================
 user_api_key = st.session_state.get("user_api_key", "").strip()
 
-# API 키 등록 여부 검증
 if not user_api_key:
-    st.warning(
+    # API 키 미등록 시 상세한 보안 및 이용 안내 제공 (st.stop을 쓰지 않아 사이드바 하단 닉네임/퇴장 유지)
+    st.info(
         "🔑 **OpenAI API Key 등록이 필요합니다.**\n\n"
-        "채팅 기능을 사용하시려면 좌측 사이드바의 **'OpenAI API Key 등록'** 항목에 유효한 API 키를 입력해 주세요.\n"
-        "- 키가 등록되지 않으면 채팅이 동작하지 않습니다.\n"
-        "- 입력된 키는 DB에 저장되지 않고 현재 브라우저 메모리에만 안전하게 보관됩니다."
+        "AI 챗봇과 대화를 시작하시려면 좌측 사이드바의 **'🔑 API Key'** 입력란에 유효한 OpenAI API 키를 입력해 주세요.\n\n"
+        "--- \n"
+        "🛡️ **안심 보안 및 주의사항**\n"
+        "- **메모리 임시 보관**: 입력하신 API 키는 데이터베이스(DB)나 서버 파일에 **일절 저장되지 않으며**, 오직 현재 접속 중인 브라우저 메모리에만 안전하게 유지됩니다.\n"
+        "- **퇴장 시 즉시 영구 삭제**: 사이드바 맨 아래의 **'퇴장'** 버튼을 누르거나 브라우저 탭/창을 닫는 즉시 메모리에서 **완전히 삭제**되어 흔적이 남지 않습니다.\n"
+        "- **키값 공유 금지**: API 키는 사용량에 따라 비용이 발생하는 소중한 개인 자산입니다. 타인에게 절대로 키값을 알려주거나 공유하지 마세요.\n"
+        "- **자동 활성화**: 유효한 API 키를 사이드바에 입력하시면 이 안내창 대신 하단에 **채팅 입력창**이 즉시 활성화됩니다."
     )
-    st.stop()
+else:
+    # 텍스트 채팅 입력 위젯 (이미지 및 파일 업로드 기능 완전 배제)
+    user_prompt = st.chat_input("메시지를 입력하세요 (Enter로 전송)...")
 
-# 텍스트 채팅 입력 위젯 (이미지 및 파일 업로드 기능 완전 배제)
-user_prompt = st.chat_input("메시지를 입력하세요 (Enter로 전송)...")
+    if user_prompt:
+        # 1. DB에 세션이 없으면 첫 질문으로 정식 등록 (로컬 시간 자동 적용)
+        ensure_session_in_db(active_session_id, user_prompt)
 
-if user_prompt:
-    # 1. DB에 세션이 없으면 첫 질문으로 정식 등록 (로컬 시간 자동 적용)
-    ensure_session_in_db(active_session_id, user_prompt)
+        # 2. 사용자 질문 화면 표시 및 DB 저장 (로컬 시간)
+        with st.chat_message("user"):
+            st.write(user_prompt)
 
-    # 2. 사용자 질문 화면 표시 및 DB 저장 (로컬 시간)
-    with st.chat_message("user"):
-        st.write(user_prompt)
-
-    save_session_message(
-        session_id=active_session_id,
-        role="user",
-        content=user_prompt,
-    )
-
-    # 2. OpenAI API 요청 메시지 포맷팅
-    api_messages = [{"role": m["role"], "content": m["content"]} for m in current_messages]
-    api_messages.append({"role": "user", "content": user_prompt})
-
-    client = OpenAI(api_key=user_api_key)
-
-    # 3. AI 답변 스트리밍 렌더링 및 DB 저장
-    with st.chat_message("assistant"):
-        stream = client.chat.completions.create(
-            model=model_name,
-            messages=api_messages,
-            stream=True,
+        save_session_message(
+            session_id=active_session_id,
+            role="user",
+            content=user_prompt,
         )
-        response_text = st.write_stream(stream)
 
-    save_session_message(
-        session_id=active_session_id,
-        role="assistant",
-        content=response_text,
-    )
+        # 3. OpenAI API 요청 메시지 포맷팅
+        api_messages = [{"role": m["role"], "content": m["content"]} for m in current_messages]
+        api_messages.append({"role": "user", "content": user_prompt})
 
-    # UI 동기화
-    st.rerun()
+        client = OpenAI(api_key=user_api_key)
+
+        # 4. AI 답변 스트리밍 렌더링 및 DB 저장
+        with st.chat_message("assistant"):
+            stream = client.chat.completions.create(
+                model=model_name,
+                messages=api_messages,
+                stream=True,
+            )
+            response_text = st.write_stream(stream)
+
+        save_session_message(
+            session_id=active_session_id,
+            role="assistant",
+            content=response_text,
+        )
+
+        # UI 동기화
+        st.rerun()

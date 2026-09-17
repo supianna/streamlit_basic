@@ -153,113 +153,106 @@ def open_history_delete_dialog(session_id: str, nickname: str, current_user: str
 
 
 # ==============================================================================
-# [단계 2] 세션 선택 및 통계 대시보드
+# [단계 2] 과거 대화 내역 렌더링 함수
 # ==============================================================================
-sessions = get_all_sessions()
+def render_history_dashboard(sessions: list[dict[str, str]]) -> None:
+    """저장된 세션 선택, 통계 메트릭, 텍스트 다운로드 및 검색 탭을 렌더링합니다."""
+    col_select, col_del = st.columns([3.6, 1.4], vertical_alignment="center")
 
-if not sessions:
-    st.info("현재 저장된 채팅 세션이 없습니다. 채팅 페이지에서 대화를 시작해보세요!")
-    st.stop()
+    with col_select:
+        session_options = ["all"] + [s["session_id"] for s in sessions]
+        session_labels = {"all": "🌐 전체 세션 통합 조회"}
+        for s in sessions:
+            session_labels[s["session_id"]] = f"📁 {s['title']} [🏷️ {s['nickname']}] ({s['created_at'][5:16]})"
 
-col_select, col_del = st.columns([3.6, 1.4], vertical_alignment="center")
+        selected_session = st.selectbox(
+            "조회할 세션을 선택하세요",
+            options=session_options,
+            format_func=lambda x: session_labels.get(x, x),
+        )
 
-with col_select:
-    session_options = ["all"] + [s["session_id"] for s in sessions]
-    session_labels = {"all": "🌐 전체 세션 통합 조회"}
-    for s in sessions:
-        session_labels[s["session_id"]] = f"📁 {s['title']} [🏷️ {s['nickname']}] ({s['created_at'][5:16]})"
+    with col_del:
+        st.write("")
+        current_user_nickname = st.session_state.get("nickname", "")
+        if selected_session != "all":
+            target_s = next((s for s in sessions if s["session_id"] == selected_session), None)
+            target_nick = target_s["nickname"] if target_s else ""
+            if target_nick == current_user_nickname:
+                if st.button("🗑️ 내 세션 삭제", use_container_width=True, help="비밀번호 확인 후 본인 세션을 삭제합니다."):
+                    open_history_delete_dialog(selected_session, target_nick, current_user_nickname)
+            else:
+                st.caption("🔒 작성자 본인만 삭제 가능")
 
-    selected_session = st.selectbox(
-        "조회할 세션을 선택하세요",
-        options=session_options,
-        format_func=lambda x: session_labels.get(x, x),
-    )
+    # 선택된 세션의 메시지 로드
+    all_msgs = get_messages_by_session(selected_session)
+    user_count = sum(1 for m in all_msgs if m[1] == "user")
+    ai_count = sum(1 for m in all_msgs if m[1] == "assistant")
+    conversation_pairs = user_count
 
-with col_del:
-    st.write("")
-    current_user_nickname = st.session_state.get("nickname", "")
-    if selected_session != "all":
-        target_s = next((s for s in sessions if s["session_id"] == selected_session), None)
-        target_nick = target_s["nickname"] if target_s else ""
-        if target_nick == current_user_nickname:
-            if st.button("🗑️ 내 세션 삭제", use_container_width=True, help="비밀번호 확인 후 본인 세션을 삭제합니다."):
-                open_history_delete_dialog(selected_session, target_nick, current_user_nickname)
-        else:
-            st.caption("🔒 작성자 본인만 삭제 가능")
+    stat_col1, stat_col2, stat_col3 = st.columns(3)
+    with stat_col1:
+        st.metric(label="총 세션 수 (최대 10개)", value=f"{len(sessions)} / 10개")
+    with stat_col2:
+        st.metric(label="선택 세션 대화 수 (최대 100쌍)", value=f"{conversation_pairs} / 100 쌍")
+    with stat_col3:
+        st.metric(label="총 메시지 수 (질문 / 답변)", value=f"{user_count} / {ai_count}")
 
-# 선택된 세션의 메시지 로드
-all_msgs = get_messages_by_session(selected_session)
-user_count = sum(1 for m in all_msgs if m[1] == "user")
-ai_count = sum(1 for m in all_msgs if m[1] == "assistant")
-conversation_pairs = user_count
+    st.divider()
 
-stat_col1, stat_col2, stat_col3 = st.columns(3)
-with stat_col1:
-    st.metric(label="총 세션 수 (최대 10개)", value=f"{len(sessions)} / 10개")
-with stat_col2:
-    st.metric(label="선택 세션 대화 수 (최대 100쌍)", value=f"{conversation_pairs} / 100 쌍")
-with stat_col3:
-    st.metric(label="총 메시지 수 (질문 / 답변)", value=f"{user_count} / {ai_count}")
-
-st.divider()
-
-
-# ==============================================================================
-# [단계 3] 텍스트 다운로드 백업
-# ==============================================================================
-if all_msgs:
-    download_text = f"=== 대화 기록 내역 ({selected_session}) ===\n\n"
-    for m in all_msgs:
-        # m = (id, role, content, created_at, session_id, nickname)
-        nick_str = f" [작성자: {m[5]}]" if m[1] == "user" else ""
-        download_text += f"[{m[3]}]{nick_str} {m[1].upper()}:\n{m[2]}\n"
-        download_text += "-" * 50 + "\n"
-
-    st.download_button(
-        label="📥 대화 내역 텍스트 다운로드 (.txt)",
-        data=download_text,
-        file_name=f"chat_history_{selected_session}.txt",
-        mime="text/plain",
-        use_container_width=True,
-    )
-
-
-# ==============================================================================
-# [단계 4] 메인 탭: 대화 타임라인 vs 키워드 검색
-# ==============================================================================
-tab_timeline, tab_search = st.tabs(["💬 대화 타임라인", "🔍 대화 내용 검색"])
-
-# 1. 대화 타임라인
-with tab_timeline:
-    if not all_msgs:
-        st.info("해당 세션에 저장된 대화 내용이 없습니다.")
-    else:
-        st.subheader(f"대화 목록 (총 {len(all_msgs)}개 메시지)")
+    # 텍스트 다운로드 백업
+    if all_msgs:
+        download_text = f"=== 대화 기록 내역 ({selected_session}) ===\n\n"
         for m in all_msgs:
-            # m = (id, role, content, created_at, session_id, nickname)
-            with st.chat_message(m[1]):
-                if m[1] == "user":
-                    st.caption(f"🕒 {m[3]} | 🏷️ 작성자: {m[5]}")
-                else:
-                    st.caption(f"🕒 {m[3]}")
-                st.write(m[2])
+            nick_str = f" [작성자: {m[5]}]" if m[1] == "user" else ""
+            download_text += f"[{m[3]}]{nick_str} {m[1].upper()}:\n{m[2]}\n"
+            download_text += "-" * 50 + "\n"
 
-# 2. 키워드 검색
-with tab_search:
-    st.subheader("🔍 키워드 검색")
-    query = st.text_input("검색할 단어를 입력하세요", placeholder="검색어 입력 후 Enter...")
+        st.download_button(
+            label="📥 대화 내역 텍스트 다운로드 (.txt)",
+            data=download_text,
+            file_name=f"chat_history_{selected_session}.txt",
+            mime="text/plain",
+            use_container_width=True,
+        )
 
-    if query:
-        search_results = search_messages(query, selected_session)
-        st.write(f"👉 **'{query}'** 검색 결과: 총 **{len(search_results)}**건")
+    # 메인 탭: 대화 타임라인 vs 키워드 검색
+    tab_timeline, tab_search = st.tabs(["💬 대화 타임라인", "🔍 대화 내용 검색"])
 
-        for res in search_results:
-            # res = (id, role, content, created_at, session_id, nickname)
-            with st.container(border=True):
-                col_r1, col_r2 = st.columns([3, 1])
-                with col_r1:
-                    writer_info = f" (작성자: `{res[5]}`)" if res[1] == "user" else ""
-                    st.markdown(f"**역할:** `{res[1]}`{writer_info} | **세션:** `{res[4]}`")
-                with col_r2:
-                    st.caption(f"🕒 {res[3]}")
-                st.write(res[2])
+    with tab_timeline:
+        if not all_msgs:
+            st.info("해당 세션에 저장된 대화 내용이 없습니다.")
+        else:
+            st.subheader(f"대화 목록 (총 {len(all_msgs)}개 메시지)")
+            for m in all_msgs:
+                with st.chat_message(m[1]):
+                    if m[1] == "user":
+                        st.caption(f"🕒 {m[3]} | 🏷️ 작성자: {m[5]}")
+                    else:
+                        st.caption(f"🕒 {m[3]}")
+                    st.write(m[2])
+
+    with tab_search:
+        st.subheader("🔍 키워드 검색")
+        query = st.text_input("검색할 단어를 입력하세요", placeholder="검색어 입력 후 Enter...")
+
+        if query:
+            search_results = search_messages(query, selected_session)
+            st.write(f"👉 **'{query}'** 검색 결과: 총 **{len(search_results)}**건")
+
+            for res in search_results:
+                with st.container(border=True):
+                    col_r1, col_r2 = st.columns([3, 1])
+                    with col_r1:
+                        writer_info = f" (작성자: `{res[5]}`)" if res[1] == "user" else ""
+                        st.markdown(f"**역할:** `{res[1]}`{writer_info} | **세션:** `{res[4]}`")
+                    with col_r2:
+                        st.caption(f"🕒 {res[3]}")
+                    st.write(res[2])
+
+
+# 세션 데이터 조회 및 화면 분기
+all_saved_sessions = get_all_sessions()
+if not all_saved_sessions:
+    st.info("현재 저장된 채팅 세션이 없습니다. 실시간 텍스트 채팅 페이지에서 새로운 대화를 시작해보세요!")
+else:
+    render_history_dashboard(all_saved_sessions)

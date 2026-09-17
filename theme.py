@@ -283,105 +283,123 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 
 
 # ==============================================================================
-# 2. 버튼 별 팝콘 폭발 인터랙션 스크립트 (Star Popcorn Burst Effect)
+# 2. 버튼 은은한 미니 별 팝 인터랙션 스크립트 (Soft Mini Star Pop Effect)
 # ==============================================================================
-STAR_POPCORN_SCRIPT: str = """
+SOFT_STAR_POP_SCRIPT: str = """
 <script>
 (function() {
-    const parentDoc = window.parent.document;
-    if (parentDoc.getElementById('star-popcorn-script-active')) return;
+    let targetDoc = null;
+    try {
+        if (window.parent && window.parent.document) {
+            targetDoc = window.parent.document;
+        }
+    } catch (e) {
+        targetDoc = document;
+    }
+    if (!targetDoc) targetDoc = document;
+
+    if (targetDoc.getElementById('soft-star-pop-script-active')) return;
 
     // 중복 주입 방지 마커
-    const marker = parentDoc.createElement('div');
-    marker.id = 'star-popcorn-script-active';
+    const marker = targetDoc.createElement('div');
+    marker.id = 'soft-star-pop-script-active';
     marker.style.display = 'none';
-    parentDoc.body.appendChild(marker);
+    targetDoc.body.appendChild(marker);
 
-    // 파티클 키프레임 애니메이션 스타일 등록
-    const styleEl = parentDoc.createElement('style');
+    // 파티클 키프레임 애니메이션 스타일 등록 (은은하고 부드러운 미니 별 팝)
+    const styleEl = targetDoc.createElement('style');
     styleEl.innerHTML = `
-        @keyframes starPopcorn {
+        @keyframes softStarPop {
             0% {
                 transform: translate(0, 0) scale(0.3) rotate(0deg);
-                opacity: 1;
+                opacity: 0;
             }
-            45% {
-                transform: translate(var(--pop-x), calc(var(--pop-y) - 30px)) scale(1.45) rotate(var(--pop-rot));
-                opacity: 1;
+            30% {
+                transform: translate(calc(var(--pop-x) * 0.6), calc(var(--pop-y) * 0.7)) scale(1.1) rotate(var(--pop-rot));
+                opacity: 0.95;
+            }
+            70% {
+                transform: translate(var(--pop-x), var(--pop-y)) scale(0.9) rotate(calc(var(--pop-rot) * 1.5));
+                opacity: 0.75;
             }
             100% {
-                transform: translate(calc(var(--pop-x) * 1.35), calc(var(--pop-y) + 32px)) scale(0) rotate(calc(var(--pop-rot) * 2));
+                transform: translate(calc(var(--pop-x) * 1.25), calc(var(--pop-y) + 10px)) scale(0.2) rotate(calc(var(--pop-rot) * 2));
                 opacity: 0;
             }
         }
-        .star-popcorn-item {
+        .soft-mini-star-item {
             position: fixed;
             pointer-events: none;
-            z-index: 9999999;
+            z-index: 99999999;
             will-change: transform, opacity;
             user-select: none;
-            animation: starPopcorn 0.75s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
-            filter: drop-shadow(0 0 6px rgba(253, 224, 71, 0.8));
+            line-height: 1;
+            animation: softStarPop 0.65s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            filter: drop-shadow(0 0 4px rgba(34, 211, 238, 0.7)) drop-shadow(0 0 2px rgba(254, 240, 138, 0.8));
         }
     `;
-    parentDoc.head.appendChild(styleEl);
+    targetDoc.head.appendChild(styleEl);
 
-    const STARS = ['✨', '⭐', '🌟', '💫', '✦', '✧', '💛'];
+    // 아주 작고 섬세한 별빛 기호 및 색상 팔레트
+    const MINI_STARS = ['✦', '✧', '⋆', '˚', '·', '✨', '⭐'];
+    const STAR_COLORS = ['#fef08a', '#67e8f9', '#e9d5ff', '#ffffff', '#a5f3fc'];
     let lastHoverTime = 0;
 
-    // 팝콘 별 파티클 생성 함수
-    function explodeStarPopcorn(x, y, count = 12) {
+    // 은은한 미니 별 팝 생성 함수
+    function emitSoftMiniStars(x, y, count = 6) {
         for (let i = 0; i < count; i++) {
-            const star = parentDoc.createElement('div');
-            star.className = 'star-popcorn-item';
-            star.innerText = STARS[Math.floor(Math.random() * STARS.length)];
+            const star = targetDoc.createElement('div');
+            star.className = 'soft-mini-star-item';
+            star.innerText = MINI_STARS[Math.floor(Math.random() * MINI_STARS.length)];
+            star.style.color = STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)];
 
-            // 팝콘처럼 위로 솟구쳤다가 사방으로 튀어오르는 물리 궤적
+            // 버튼 테두리 주변으로 은은하게 살포시 퍼지는 궤적 (반경 16px ~ 32px)
             const angle = Math.random() * Math.PI * 2;
-            const distance = 45 + Math.random() * 70;
+            const distance = 16 + Math.random() * 20;
             const popX = (Math.cos(angle) * distance) + 'px';
-            const popY = (Math.sin(angle) * distance - (20 + Math.random() * 35)) + 'px';
-            const popRot = (Math.random() * 360 - 180) + 'deg';
-            const size = (16 + Math.random() * 14) + 'px';
+            const popY = (Math.sin(angle) * distance - (10 + Math.random() * 15)) + 'px';
+            const popRot = (Math.random() * 180 - 90) + 'deg';
+            // 아주 작은 폰트 크기 (8px ~ 12px)
+            const size = (8 + Math.random() * 5) + 'px';
 
-            star.style.left = (x - 10) + 'px';
-            star.style.top = (y - 10) + 'px';
+            star.style.left = (x - 6) + 'px';
+            star.style.top = (y - 6) + 'px';
             star.style.fontSize = size;
             star.style.setProperty('--pop-x', popX);
             star.style.setProperty('--pop-y', popY);
             star.style.setProperty('--pop-rot', popRot);
 
-            parentDoc.body.appendChild(star);
+            targetDoc.body.appendChild(star);
 
             setTimeout(() => {
                 if (star.parentNode) star.parentNode.removeChild(star);
-            }, 800);
+            }, 700);
         }
     }
 
-    // 버튼 호버 시 (마우스 커서 올릴 때): 팝콘 터짐
-    parentDoc.addEventListener('mouseover', function(e) {
+    // 버튼 호버 시 (마우스 커서 올릴 때): 아주 작은 별들이 은은하게 팝
+    targetDoc.addEventListener('mouseover', function(e) {
         const btn = e.target.closest('button');
         if (btn) {
             const now = Date.now();
-            if (now - lastHoverTime > 300) {
+            if (now - lastHoverTime > 220) {
                 lastHoverTime = now;
                 const rect = btn.getBoundingClientRect();
                 const x = e.clientX || (rect.left + rect.width / 2);
                 const y = e.clientY || (rect.top + rect.height / 2);
-                explodeStarPopcorn(x, y, 10);
+                emitSoftMiniStars(x, y, 6);
             }
         }
     }, true);
 
-    // 버튼 클릭 시 (누를 때): 대형 팝콘 별 폭발!
-    parentDoc.addEventListener('click', function(e) {
+    // 버튼 클릭 시 (누를 때): 은은한 미니 별들이 톡톡 터짐
+    targetDoc.addEventListener('click', function(e) {
         const btn = e.target.closest('button');
         if (btn) {
             const rect = btn.getBoundingClientRect();
             const x = e.clientX || (rect.left + rect.width / 2);
             const y = e.clientY || (rect.top + rect.height / 2);
-            explodeStarPopcorn(x, y, 18);
+            emitSoftMiniStars(x, y, 10);
         }
     }, true);
 })();
@@ -390,6 +408,6 @@ STAR_POPCORN_SCRIPT: str = """
 
 
 def apply_theme() -> None:
-    """사이버 오로라 네온 테마 CSS 및 버튼 별 팝콘 인터랙션 효과를 현재 페이지에 주입합니다."""
+    """사이버 오로라 네온 테마 CSS 및 버튼 은은한 미니 별 팝 인터랙션 효과를 주입합니다."""
     st.markdown(CYBER_AURORA_THEME_CSS, unsafe_allow_html=True)
-    components.html(STAR_POPCORN_SCRIPT, height=0, width=0)
+    components.html(SOFT_STAR_POP_SCRIPT, height=0, width=0)
