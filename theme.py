@@ -16,10 +16,17 @@ CYBER_AURORA_THEME_CSS: str = """
     color: #e0e7ff;
 }
 
-/* 2. 사이드바 스타일 */
+/* 2. 사이드바 스타일 및 스크롤 방지 최적화 */
 section[data-testid="stSidebar"] {
     background-color: #080a14 !important;
     border-right: 1px solid rgba(6, 182, 212, 0.25);
+}
+section[data-testid="stSidebar"] > div {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+}
+section[data-testid="stSidebar"] div.stVerticalBlock {
+    gap: 0.65rem !important;
 }
 section[data-testid="stSidebar"] * {
     color: #cbd5e1 !important;
@@ -87,3 +94,4 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 def apply_theme() -> None:
     """사이버 오로라 네온 테마 CSS를 현재 페이지에 주입합니다."""
     st.markdown(CYBER_AURORA_THEME_CSS, unsafe_allow_html=True)
+

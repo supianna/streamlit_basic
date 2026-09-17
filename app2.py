@@ -75,17 +75,18 @@ def render_login_page() -> None:
 if not st.session_state.get("logged_in", False):
     render_login_page()
 else:
-    # 로그인 완료 시 사이드바 상단에 사용자 정보 및 로그아웃 버튼 표시
+    # 로그인 완료 시 사이드바 상단에 사용자 정보 및 로그아웃 버튼을 1줄로 컴팩트하게 표시
     with st.sidebar:
-        st.markdown(f"👤 **접속 계정:** `{st.session_state.get('user_id', '사용자')}`")
-        if st.button("🚪 로그아웃", use_container_width=True):
-            logger.info("로그아웃 실행: %s", st.session_state.get("user_id"))
-            st.session_state["logged_in"] = False
-            # API 키 및 세션 정보 초기화
-            if "user_api_key" in st.session_state:
-                del st.session_state["user_api_key"]
-            st.rerun()
-        st.divider()
+        col_u1, col_u2 = st.columns([1.6, 1], vertical_alignment="center")
+        with col_u1:
+            st.caption(f"👤 `{st.session_state.get('user_id', '사용자')}`")
+        with col_u2:
+            if st.button("로그아웃", use_container_width=True):
+                logger.info("로그아웃 실행: %s", st.session_state.get("user_id"))
+                st.session_state["logged_in"] = False
+                if "user_api_key" in st.session_state:
+                    del st.session_state["user_api_key"]
+                st.rerun()
 
     # 공식 멀티페이지 네비게이션 정의
     chat_page = st.Page(

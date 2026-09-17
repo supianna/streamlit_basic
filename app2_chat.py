@@ -214,74 +214,51 @@ if "current_session_id" not in st.session_state or not any(s["session_id"] == st
 
 
 # ==============================================================================
-# [단계 3] 사이드바 설정 (API 키 등록, 모델 선택, 세션 관리)
+# [단계 3] 사이드바 설정 (컴팩트 스크롤 프리 레이아웃)
 # ==============================================================================
 with st.sidebar:
-    st.header("⚙️ 챗봇 설정")
+    st.caption("⚙️ **챗봇 환경 설정**")
 
-    # 1. API Key 등록 옵션 (DB나 파일에 절대 저장되지 않고 세션 메모리에만 유지)
-    st.markdown("#### 🔑 OpenAI API Key 등록")
-    saved_key = st.session_state.get("user_api_key", "")
+    # 1. API Key 등록 (상태 인라인 표시로 공간 절약, DB 미저장)
+    saved_key = st.session_state.get("user_api_key", "").strip()
+    key_label = "🔑 API Key (등록완료 ✅)" if saved_key else "🔑 API Key (미등록 ⚠️)"
 
     input_key = st.text_input(
-        "API 키 입력 (필수)",
+        key_label,
         type="password",
         value=saved_key,
         placeholder="sk-...",
-        help="입력하신 키는 DB나 디스크에 저장되지 않으며 현재 브라우저 메모리에만 유지됩니다.",
+        help="입력하신 키는 DB/파일에 저장되지 않고 현재 브라우저 메모리에만 안전하게 유지됩니다.",
     )
-
-    if input_key.strip():
+    if input_key.strip() != saved_key:
         st.session_state["user_api_key"] = input_key.strip()
-        st.success("✅ API 키 등록 완료")
-    else:
-        st.session_state["user_api_key"] = ""
-        st.warning("⚠️ API 키가 등록되지 않았습니다.")
+        st.rerun()
 
-    st.caption("🔒 민감한 API Key는 보안을 위해 서버 DB나 로컬 파일에 일절 저장되지 않습니다.")
-    st.divider()
-
-    # 2. 모델 선택 (규칙 10: gpt-5.6-luna 기본)
-    model_options = [
-        "gpt-5.6-luna",
-        "gpt-5.6-terra",
-        "gpt-5.6-sol",
-        "gpt-5.5",
-        "gpt-6-astra",
-        "직접 입력...",
-    ]
-    selected_option = st.selectbox(
-        "OpenAI 모델 선택 (기본: gpt-5.6-luna)",
-        options=model_options,
+    # 2. 모델 선택 (기본: gpt-5.6-luna)
+    model_name = st.selectbox(
+        "🤖 모델 선택",
+        options=["gpt-5.6-luna", "gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.5"],
         index=0,
     )
-    if selected_option == "직접 입력...":
-        model_name = st.text_input("모델명 직접 입력", value=DEFAULT_MODEL)
-    else:
-        model_name = selected_option
 
-    st.divider()
-
-    # 3. 세션 관리 영역 (최대 10개 세션, 세션당 100개 대화 유지)
-    st.markdown("#### 💬 채팅 세션 관리")
-    st.caption("최대 10개 세션까지 유지되며, 초과 시 오래된 세션부터 자동 정리됩니다.")
-
-    if st.button("➕ 새 채팅 세션 시작", use_container_width=True):
+    # 3. 세션 관리 (새 대화 버튼 + 대화 목록 드롭다운 결합)
+    st.caption("💬 **채팅 세션 관리 (최대 10개)**")
+    if st.button("➕ 새 대화 시작", use_container_width=True):
         new_sid = create_new_session()
         st.session_state["current_session_id"] = new_sid
         st.rerun()
 
-    # 세션 선택 셀렉트박스
     session_id_list = [s["session_id"] for s in all_sessions]
-    session_label_map = {s["session_id"]: f"{s['title']} ({s['created_at'][:16]})" for s in all_sessions}
+    session_label_map = {s["session_id"]: f"{s['title']}" for s in all_sessions}
 
     current_idx = session_id_list.index(st.session_state["current_session_id"]) if st.session_state["current_session_id"] in session_id_list else 0
 
     chosen_session_id = st.selectbox(
-        "세션 전환",
+        "대화 목록",
         options=session_id_list,
         index=current_idx,
         format_func=lambda sid: session_label_map.get(sid, sid),
+        label_visibility="collapsed",
     )
 
     if chosen_session_id != st.session_state["current_session_id"]:
