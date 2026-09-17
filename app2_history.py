@@ -126,7 +126,7 @@ def verify_and_delete_session(session_id: str, input_pw: str) -> tuple[bool, str
 
 @st.dialog("🗑️ 세션 삭제 확인 (비밀번호 인증)")
 def open_history_delete_dialog(session_id: str, nickname: str) -> None:
-    """방명록 삭제 비밀번호를 입력받아 검증 후 세션을 삭제합니다."""
+    """대화 삭제 비밀번호를 입력받아 검증 후 세션을 삭제합니다."""
     st.write(f"작성자 **'{nickname}'**님의 대화 세션을 삭제하시겠습니까?")
     st.caption("대화 생성 시 등록했던 **삭제 비밀번호**를 입력해야 삭제가 처리됩니다.")
     input_del_pw = st.text_input("삭제 비밀번호", type="password", key="history_del_pw")

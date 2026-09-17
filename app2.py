@@ -1,6 +1,6 @@
 """
 파일명: app2.py
-목적: 방명록 스타일 닉네임 및 삭제 비밀번호 기반 입장, 페이지 라우팅 관리
+목적: 사용자 닉네임 및 삭제 비밀번호 기반 간편 입장, 페이지 라우팅 관리
 """
 
 import logging
@@ -26,16 +26,16 @@ apply_theme()
 
 
 # ==============================================================================
-# [단계 1] 방명록 스타일 입장 및 보안 안내 뷰
+# [단계 1] 사용자 닉네임 및 삭제 비밀번호 등록 입장 뷰
 # ==============================================================================
 def render_guestbook_login_page() -> None:
-    """닉네임과 삭제 비밀번호를 입력받는 방명록 형태의 입장 페이지를 렌더링합니다."""
-    st.title("📝 챗봇 서비스 입장 (방명록)")
+    """닉네임과 삭제 비밀번호를 입력받아 간편하게 입장하는 페이지를 렌더링합니다."""
+    st.title("📝 챗봇 서비스 입장")
 
     # 보안 취약점 주의 안내 메시지
     st.warning(
         "⚠️ **보안 취약점 주의 안내**\n\n"
-        "- 본 서비스는 방명록 방식으로 누구나 닉네임과 삭제 비밀번호를 등록하고 입장할 수 있습니다.\n"
+        "- 본 서비스는 누구나 닉네임과 삭제 비밀번호를 등록하고 간편하게 입장할 수 있습니다.\n"
         "- 입력하신 **'삭제 비밀번호'**는 본인이 작성한 대화 기록을 삭제할 때 확인용으로 사용됩니다.\n"
         "- 전용 암호화 백엔드가 없는 실습 환경이므로, **실제 포털, 금융, 개인 이메일 등에서 사용하는 중요 비밀번호를 절대 입력하지 마십시오.**"
     )
@@ -43,7 +43,7 @@ def render_guestbook_login_page() -> None:
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         with st.form("guestbook_entry_form", clear_on_submit=False):
-            st.subheader("방명록 작성 및 입장")
+            st.subheader("사용자 등록 및 입장")
             nickname = st.text_input("🏷️ 닉네임 (대화명)", placeholder="예: 코딩토끼 (대화 저장 시 사용)")
             delete_pw = st.text_input(
                 "🔑 삭제 비밀번호",
@@ -66,7 +66,7 @@ def render_guestbook_login_page() -> None:
                     st.session_state["nickname"] = cleaned_nickname
                     st.session_state["delete_pw"] = cleaned_pw
                     st.session_state["user_id"] = cleaned_nickname
-                    logger.info("방명록 입장 완료: 닉네임 '%s'", cleaned_nickname)
+                    logger.info("채팅방 입장 완료: 닉네임 '%s'", cleaned_nickname)
                     st.success(f"'{cleaned_nickname}'님 환영합니다! 채팅방으로 이동합니다...")
                     st.rerun()
 
