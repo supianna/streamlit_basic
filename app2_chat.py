@@ -155,55 +155,6 @@ def ensure_session_in_db(session_id: str, first_prompt: str = "") -> None:
         conn.close()
 
 
-def verify_and_delete_session(session_id: str, input_pw: str) -> tuple[bool, str]:
-    """
-    입력된 비밀번호가 세션의 삭제 비밀번호와 일치하는지 확인 후 세션을 삭제합니다.
-    """
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute("SELECT delete_pw, nickname FROM sessions WHERE session_id = ?", (session_id,))
-    row = cursor.fetchone()
-
-    if not row:
-        conn.close()
-        return False, "존재하지 않는 세션입니다."
-
-    stored_pw, nickname = row[0], row[1]
-    if stored_pw and stored_pw != input_pw.strip():
-        conn.close()
-        return False, "삭제 비밀번호가 일치하지 않습니다."
-
-    cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-    cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
-    conn.commit()
-    conn.close()
-    logger.info("대화 세션 삭제 승인 완료: %s (작성자: %s)", session_id, nickname)
-    return True, "대화가 성공적으로 삭제되었습니다."
-
-
-@st.dialog("🗑️ 대화 삭제 (비밀번호 확인)")
-def open_delete_chat_dialog(session_id: str) -> None:
-    """대화 삭제를 위한 비밀번호 입력 확인 다이얼로그를 표시합니다."""
-    st.write("선택하신 대화 세션을 완전히 삭제하시겠습니까?")
-    st.caption("대화 등록 시 설정한 **삭제 비밀번호**를 입력해야 삭제가 처리됩니다.")
-    del_pw_input = st.text_input("삭제 비밀번호", type="password", key="chat_del_pw_input")
-
-    col_btn1, col_btn2 = st.columns(2)
-    with col_btn1:
-        if st.button("삭제 확인", use_container_width=True):
-            if not del_pw_input.strip():
-                st.error("삭제 비밀번호를 입력하세요.")
-            else:
-                success, msg = verify_and_delete_session(session_id, del_pw_input)
-                if success:
-                    st.success(msg)
-                    st.session_state["current_session_id"] = generate_new_session_id()
-                    st.rerun()
-                else:
-                    st.error(f"❌ {msg}")
-    with col_btn2:
-        if st.button("취소", use_container_width=True):
-            st.rerun()
 
 
 def load_session_messages(session_id: str) -> list[dict[str, str]]:
@@ -271,23 +222,24 @@ def save_session_message(session_id: str, role: str, content: str) -> None:
 # ==============================================================================
 # [단계 2] DB 초기화 및 기본 활성 세션 보장 (지연 생성)
 # ==============================================================================
+# ==============================================================================
+# [단계 2] DB 초기화 및 신규 활성 세션 보장 (지연 생성)
+# ==============================================================================
 init_db()
 all_sessions = get_all_sessions()
 
+# 세션 ID가 없으면 항상 새 세션 ID로 시작하여 깨끗한 상태 유지
 if "current_session_id" not in st.session_state:
-    if all_sessions:
-        st.session_state["current_session_id"] = all_sessions[0]["session_id"]
-    else:
-        st.session_state["current_session_id"] = generate_new_session_id()
+    st.session_state["current_session_id"] = generate_new_session_id()
 
 
 # ==============================================================================
-# [단계 3] 사이드바 설정 (컴팩트 스크롤 프리 레이아웃)
+# [단계 3] 사이드바 설정 (API Key -> 모델 선택 -> 새 대화 시작 순서)
 # ==============================================================================
 with st.sidebar:
     st.caption("⚙️ **챗봇 환경 설정**")
 
-    # 1. API Key 등록 (상태 인라인 표시로 공간 절약, DB 미저장)
+    # 1. API Key 등록 (브라우저 세션 메모리에만 유지)
     saved_key = st.session_state.get("user_api_key", "").strip()
     key_label = "🔑 API Key (등록완료 ✅)" if saved_key else "🔑 API Key (미등록 ⚠️)"
 
@@ -309,33 +261,9 @@ with st.sidebar:
         index=0,
     )
 
-    # 3. 세션 관리 (새 대화 버튼 + 대화 목록 드롭다운 결합, 지연 생성)
-    st.caption("💬 **채팅 세션 관리 (최대 10개)**")
+    # 3. 새 대화 시작 버튼
     if st.button("➕ 새 대화 시작", use_container_width=True):
         st.session_state["current_session_id"] = generate_new_session_id()
-        st.rerun()
-
-    current_sid = st.session_state["current_session_id"]
-    session_id_list = [s["session_id"] for s in all_sessions]
-    session_label_map = {s["session_id"]: f"{s['title']} ({s['nickname']})" for s in all_sessions}
-
-    # 아직 메시지가 없는 신규 세션일 경우 임시 표시
-    if current_sid not in session_id_list:
-        session_id_list = [current_sid] + session_id_list
-        session_label_map[current_sid] = "✨ 새 대화 (작성 중)"
-
-    current_idx = session_id_list.index(current_sid)
-
-    chosen_session_id = st.selectbox(
-        "대화 목록",
-        options=session_id_list,
-        index=current_idx,
-        format_func=lambda sid: session_label_map.get(sid, sid),
-        label_visibility="collapsed",
-    )
-
-    if chosen_session_id != st.session_state["current_session_id"]:
-        st.session_state["current_session_id"] = chosen_session_id
         st.rerun()
 
 
@@ -346,23 +274,20 @@ active_session_id = st.session_state["current_session_id"]
 current_messages = load_session_messages(active_session_id)
 dialogue_pair_count = len(current_messages) // 2
 
-# 활성 세션의 작성자 닉네임 탐색
+# 활성 세션의 작성자 닉네임 탐색 (현재 로그인된 닉네임 우선)
+current_user_nick = st.session_state.get("nickname", "익명")
 active_author = next(
     (s["nickname"] for s in all_sessions if s["session_id"] == active_session_id),
-    st.session_state.get("nickname", "익명"),
+    current_user_nick,
 )
 
-# 페이지 제목 및 세션 현황
+# 페이지 제목 및 세션 현황 (실시간 채팅에서는 삭제 버튼 배제)
 st.title("💬 실시간 텍스트 채팅")
-col_info1, col_info2, col_info3 = st.columns([3, 1.2, 0.9], vertical_alignment="center")
+col_info1, col_info2 = st.columns([3.5, 1.5], vertical_alignment="center")
 with col_info1:
     st.caption(f"작성자: **🏷️ {active_author}** | 세션당 최대 100개 대화 보관")
 with col_info2:
     st.info(f"대화: **{dialogue_pair_count} / {MAX_CONVERSATIONS_PER_SESSION} 쌍**")
-with col_info3:
-    if any(s["session_id"] == active_session_id for s in all_sessions):
-        if st.button("🗑️ 삭제", use_container_width=True, help="비밀번호 확인 후 현재 대화를 삭제합니다."):
-            open_delete_chat_dialog(active_session_id)
 
 # 대화 내용 화면 렌더링
 for msg in current_messages:

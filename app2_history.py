@@ -100,8 +100,8 @@ def search_messages(keyword: str, session_id: str | None = None) -> list[tuple]:
     return rows
 
 
-def verify_and_delete_session(session_id: str, input_pw: str) -> tuple[bool, str]:
-    """비밀번호 검증 후 세션 및 해당 대화를 영구 삭제합니다."""
+def verify_and_delete_session(session_id: str, input_pw: str, current_user: str) -> tuple[bool, str]:
+    """비밀번호 및 작성자 본인 여부 검증 후 세션 및 해당 대화를 영구 삭제합니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("SELECT delete_pw, nickname FROM sessions WHERE session_id = ?", (session_id,))
@@ -112,6 +112,10 @@ def verify_and_delete_session(session_id: str, input_pw: str) -> tuple[bool, str
         return False, "존재하지 않는 세션입니다."
 
     stored_pw, nickname = row[0], row[1]
+    if nickname != current_user:
+        conn.close()
+        return False, "본인이 작성한 대화만 삭제할 수 있습니다."
+
     if stored_pw and stored_pw != input_pw.strip():
         conn.close()
         return False, "삭제 비밀번호가 일치하지 않습니다."
@@ -125,8 +129,8 @@ def verify_and_delete_session(session_id: str, input_pw: str) -> tuple[bool, str
 
 
 @st.dialog("🗑️ 세션 삭제 확인 (비밀번호 인증)")
-def open_history_delete_dialog(session_id: str, nickname: str) -> None:
-    """대화 삭제 비밀번호를 입력받아 검증 후 세션을 삭제합니다."""
+def open_history_delete_dialog(session_id: str, nickname: str, current_user: str) -> None:
+    """대화 삭제 비밀번호를 입력받아 본인 검증 후 세션을 삭제합니다."""
     st.write(f"작성자 **'{nickname}'**님의 대화 세션을 삭제하시겠습니까?")
     st.caption("대화 생성 시 등록했던 **삭제 비밀번호**를 입력해야 삭제가 처리됩니다.")
     input_del_pw = st.text_input("삭제 비밀번호", type="password", key="history_del_pw")
@@ -137,7 +141,7 @@ def open_history_delete_dialog(session_id: str, nickname: str) -> None:
             if not input_del_pw.strip():
                 st.error("비밀번호를 입력해 주세요.")
             else:
-                success, msg = verify_and_delete_session(session_id, input_del_pw)
+                success, msg = verify_and_delete_session(session_id, input_del_pw, current_user)
                 if success:
                     st.success(msg)
                     st.rerun()
@@ -157,7 +161,7 @@ if not sessions:
     st.info("현재 저장된 채팅 세션이 없습니다. 채팅 페이지에서 대화를 시작해보세요!")
     st.stop()
 
-col_select, col_del = st.columns([3.8, 1.2], vertical_alignment="center")
+col_select, col_del = st.columns([3.6, 1.4], vertical_alignment="center")
 
 with col_select:
     session_options = ["all"] + [s["session_id"] for s in sessions]
@@ -173,11 +177,15 @@ with col_select:
 
 with col_del:
     st.write("")
+    current_user_nickname = st.session_state.get("nickname", "")
     if selected_session != "all":
         target_s = next((s for s in sessions if s["session_id"] == selected_session), None)
-        target_nick = target_s["nickname"] if target_s else "익명"
-        if st.button("🗑️ 세션 삭제", use_container_width=True, help="비밀번호 확인 후 세션을 삭제합니다."):
-            open_history_delete_dialog(selected_session, target_nick)
+        target_nick = target_s["nickname"] if target_s else ""
+        if target_nick == current_user_nickname:
+            if st.button("🗑️ 내 세션 삭제", use_container_width=True, help="비밀번호 확인 후 본인 세션을 삭제합니다."):
+                open_history_delete_dialog(selected_session, target_nick, current_user_nickname)
+        else:
+            st.caption("🔒 작성자 본인만 삭제 가능")
 
 # 선택된 세션의 메시지 로드
 all_msgs = get_messages_by_session(selected_session)

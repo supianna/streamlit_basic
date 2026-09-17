@@ -3,6 +3,7 @@
 목적: 사용자 닉네임 및 삭제 비밀번호 기반 간편 입장, 페이지 라우팅 관리
 """
 
+from datetime import datetime
 import logging
 import streamlit as st
 from theme import apply_theme
@@ -66,6 +67,8 @@ def render_guestbook_login_page() -> None:
                     st.session_state["nickname"] = cleaned_nickname
                     st.session_state["delete_pw"] = cleaned_pw
                     st.session_state["user_id"] = cleaned_nickname
+                    # 입장 시 새 대화 세션 ID 발급 (과거 대화가 기본으로 뜨지 않도록 보장)
+                    st.session_state["current_session_id"] = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S_%f')}"
                     logger.info("채팅방 입장 완료: 닉네임 '%s'", cleaned_nickname)
                     st.success(f"'{cleaned_nickname}'님 환영합니다! 채팅방으로 이동합니다...")
                     st.rerun()
@@ -79,24 +82,7 @@ def render_guestbook_login_page() -> None:
 if not st.session_state.get("logged_in", False):
     render_guestbook_login_page()
 else:
-    # 로그인 완료 시 사이드바 상단에 닉네임 및 퇴장(로그아웃) 버튼을 1줄로 컴팩트하게 표시
-    with st.sidebar:
-        col_u1, col_u2 = st.columns([1.6, 1], vertical_alignment="center")
-        with col_u1:
-            st.markdown(f"🏷️ **{st.session_state.get('nickname', '익명')}**님")
-        with col_u2:
-            if st.button("퇴장", use_container_width=True):
-                logger.info("퇴장 실행: %s", st.session_state.get("nickname"))
-                st.session_state["logged_in"] = False
-                if "user_api_key" in st.session_state:
-                    del st.session_state["user_api_key"]
-                if "nickname" in st.session_state:
-                    del st.session_state["nickname"]
-                if "delete_pw" in st.session_state:
-                    del st.session_state["delete_pw"]
-                st.rerun()
-
-    # 공식 멀티페이지 네비게이션 정의
+    # 1. 사이드바 맨 위: 공식 멀티페이지 네비게이션 (채팅 -> 과거대화내역 순)
     chat_page = st.Page(
         "app2_chat.py",
         title="실시간 텍스트 채팅",
@@ -111,10 +97,21 @@ else:
     )
 
     pg = st.navigation(
-        {
-            "서비스 메뉴": [chat_page, history_page],
-        },
+        [chat_page, history_page],
         position="sidebar",
     )
 
+    # 2. 현재 선택된 페이지 실행 (app2_chat.py 또는 app2_history.py 내부 사이드바 컨트롤 렌더링)
     pg.run()
+
+    # 3. 사이드바 맨 아래: 닉네임(아이디) 및 퇴장 버튼 배치
+    with st.sidebar:
+        st.divider()
+        col_u1, col_u2 = st.columns([1.6, 1], vertical_alignment="center")
+        with col_u1:
+            st.markdown(f"🏷️ **{st.session_state.get('nickname', '익명')}**님")
+        with col_u2:
+            if st.button("퇴장", use_container_width=True, key="sidebar_logout_btn"):
+                logger.info("퇴장 실행: %s", st.session_state.get("nickname"))
+                st.session_state.clear()
+                st.rerun()
