@@ -1,6 +1,6 @@
 """
 파일명: theme.py
-목적: 사이버 오로라 네온(Cyber Aurora Neon) 테마 CSS 스타일 정의 및 페이지 주입 함수
+목적: 사이버 오로라 네온(Cyber Aurora Neon) 고대비 가독성 보정 및 밝은 네온 버튼 테마 CSS 정의
 """
 
 import streamlit as st
@@ -13,10 +13,43 @@ CYBER_AURORA_THEME_CSS: str = """
     background-image: 
         radial-gradient(ellipse at 10% 20%, rgba(6, 182, 212, 0.22), transparent 50%),
         radial-gradient(ellipse at 90% 80%, rgba(168, 85, 247, 0.24), transparent 50%);
-    color: #e0e7ff;
+    color: #f8fafc !important;
 }
 
-/* 2. 사이드바 스타일 및 스크롤 방지 최적화 */
+/* 2. 전역 텍스트 가독성 고대비 보정 (어두워서 안 보이는 글씨 완전 해결) */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    text-shadow: 0 0 10px rgba(6, 182, 212, 0.3);
+}
+
+p, span, div {
+    color: #f1f5f9;
+}
+
+/* 캡션 및 서브 텍스트 가독성 강화 */
+.stCaption, small, [data-testid="stCaptionContainer"] p {
+    color: #cbd5e1 !important;
+    font-weight: 500 !important;
+}
+
+/* 폼 및 위젯 입력 라벨을 선명한 화이트로 고정 */
+label, [data-testid="stWidgetLabel"] p, .stWidgetLabel {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+/* 메트릭 통계 카드 텍스트 */
+[data-testid="stMetricValue"] {
+    color: #22d3ee !important;
+    text-shadow: 0 0 10px rgba(34, 211, 238, 0.4);
+}
+[data-testid="stMetricLabel"] p {
+    color: #e2e8f0 !important;
+    font-weight: 600 !important;
+}
+
+/* 3. 사이드바 스타일 및 스크롤 방지 최적화 */
 section[data-testid="stSidebar"] {
     background-color: #080a14 !important;
     border-right: 1px solid rgba(6, 182, 212, 0.25);
@@ -29,10 +62,27 @@ section[data-testid="stSidebar"] div.stVerticalBlock {
     gap: 0.65rem !important;
 }
 section[data-testid="stSidebar"] * {
-    color: #cbd5e1 !important;
+    color: #f1f5f9 !important;
 }
 
-/* 3. 사용자(User) 채팅 버블: 시안 네온 글로우 */
+/* 4. 밝고 눈에 띄는 네온 버튼 (Bright Neon Button) */
+div.stButton > button, div[data-testid="stFormSubmitButton"] > button {
+    background: linear-gradient(135deg, #06b6d4 0%, #38bdf8 100%) !important;
+    color: #030712 !important;
+    font-weight: 700 !important;
+    border: none !important;
+    border-radius: 12px !important;
+    box-shadow: 0 0 16px rgba(6, 182, 212, 0.6) !important;
+    transition: all 0.25s ease-in-out !important;
+}
+div.stButton > button:hover, div[data-testid="stFormSubmitButton"] > button:hover {
+    background: linear-gradient(135deg, #22d3ee 0%, #a855f7 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 0 24px rgba(34, 211, 238, 0.85) !important;
+    transform: translateY(-1px);
+}
+
+/* 5. 사용자(User) 채팅 버블: 시안 네온 글로우 */
 div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"]) {
     background: linear-gradient(135deg, #0891b2 0%, #0284c7 100%) !important;
     color: #ffffff !important;
@@ -46,7 +96,7 @@ div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarUser"])
     color: #ffffff !important;
 }
 
-/* 4. 어시스턴트(Assistant) 채팅 버블: 바이올렛 네온 림 */
+/* 6. 어시스턴트(Assistant) 채팅 버블: 바이올렛 네온 림 */
 div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssistant"]) {
     background: rgba(15, 17, 30, 0.85) !important;
     backdrop-filter: blur(12px) !important;
@@ -61,31 +111,17 @@ div[data-testid="stChatMessage"]:has(div[data-testid="stChatMessageAvatarAssista
     color: #f1f5f9 !important;
 }
 
-/* 5. 입력창(Chat Input) 네온 림 */
+/* 7. 입력창(Chat Input) 네온 림 */
 div[data-testid="stChatInput"] {
     border-radius: 24px !important;
-    border: 1px solid rgba(6, 182, 212, 0.4) !important;
-    box-shadow: 0 0 12px rgba(6, 182, 212, 0.2) !important;
+    border: 1px solid rgba(6, 182, 212, 0.5) !important;
+    box-shadow: 0 0 14px rgba(6, 182, 212, 0.25) !important;
 }
 
-/* 6. 버튼 및 컨테이너 네온 감성 보정 */
-div.stButton > button {
-    border: 1px solid rgba(6, 182, 212, 0.4) !important;
-    background: rgba(15, 23, 42, 0.8) !important;
-    color: #e0e7ff !important;
-    border-radius: 10px !important;
-    transition: all 0.3s ease !important;
-}
-div.stButton > button:hover {
-    border-color: rgba(168, 85, 247, 0.8) !important;
-    box-shadow: 0 0 15px rgba(168, 85, 247, 0.4) !important;
-    color: #ffffff !important;
-}
-
-/* 7. 카드 및 컨테이너 보더 */
+/* 8. 카드 및 컨테이너 보더 */
 div[data-testid="stVerticalBlockBorderWrapper"] {
-    border-color: rgba(6, 182, 212, 0.25) !important;
-    background: rgba(15, 23, 42, 0.4) !important;
+    border-color: rgba(6, 182, 212, 0.35) !important;
+    background: rgba(15, 23, 42, 0.5) !important;
 }
 </style>
 """
@@ -94,4 +130,3 @@ div[data-testid="stVerticalBlockBorderWrapper"] {
 def apply_theme() -> None:
     """사이버 오로라 네온 테마 CSS를 현재 페이지에 주입합니다."""
     st.markdown(CYBER_AURORA_THEME_CSS, unsafe_allow_html=True)
-

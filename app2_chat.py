@@ -35,14 +35,23 @@ def init_db() -> None:
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
 
-    # 세션 테이블
+    # 세션 테이블 (닉네임 및 삭제 비밀번호 컬럼 포함)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS sessions (
             session_id TEXT PRIMARY KEY,
             title TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            nickname TEXT DEFAULT '익명',
+            delete_pw TEXT DEFAULT ''
         )
     """)
+
+    # 기존 테이블 컬럼 보정 (안전한 마이그레이션)
+    cols = [col[1] for col in cursor.execute("PRAGMA table_info(sessions)").fetchall()]
+    if "nickname" not in cols:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN nickname TEXT DEFAULT '익명'")
+    if "delete_pw" not in cols:
+        cursor.execute("ALTER TABLE sessions ADD COLUMN delete_pw TEXT DEFAULT ''")
 
     # 메시지 테이블 (API 키 등의 민감 정보는 절대 저장하지 않음)
     cursor.execute("""
@@ -70,7 +79,7 @@ def get_all_sessions() -> list[dict[str, str]]:
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
-        SELECT s.session_id, s.title, s.created_at
+        SELECT s.session_id, s.title, s.created_at, s.nickname, s.delete_pw
         FROM sessions s
         WHERE EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.session_id)
         ORDER BY s.created_at DESC
@@ -84,6 +93,8 @@ def get_all_sessions() -> list[dict[str, str]]:
             "session_id": r[0],
             "title": r[1],
             "created_at": r[2],
+            "nickname": r[3] if len(r) > 3 and r[3] else "익명",
+            "delete_pw": r[4] if len(r) > 4 and r[4] else "",
         })
     return sessions
 
@@ -116,7 +127,7 @@ def generate_new_session_id() -> str:
 
 def ensure_session_in_db(session_id: str, first_prompt: str = "") -> None:
     """
-    세션이 DB에 없으면 첫 질문 입력 시점에 로컬 시간으로 생성합니다 (지연 생성).
+    세션이 DB에 없으면 첫 질문 입력 시점에 닉네임과 삭제 비밀번호를 함께 저장합니다 (지연 생성).
     """
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -127,19 +138,72 @@ def ensure_session_in_db(session_id: str, first_prompt: str = "") -> None:
         now_local = get_current_local_time()
         title_summary = first_prompt[:18] + ("..." if len(first_prompt) > 18 else "")
         session_title = title_summary if title_summary else f"대화 {now_local[5:16]}"
+        nickname = st.session_state.get("nickname", "익명")
+        delete_pw = st.session_state.get("delete_pw", "")
 
         cursor.execute(
-            "INSERT INTO sessions (session_id, title, created_at) VALUES (?, ?, ?)",
-            (session_id, session_title, now_local),
+            "INSERT INTO sessions (session_id, title, created_at, nickname, delete_pw) VALUES (?, ?, ?, ?, ?)",
+            (session_id, session_title, now_local, nickname, delete_pw),
         )
         conn.commit()
-        logger.info("첫 대화 발생으로 세션 DB 정식 등록: %s (%s)", session_id, session_title)
+        logger.info("첫 대화 발생으로 세션 DB 등록: %s (작성자: %s)", session_id, nickname)
         conn.close()
 
         # 세션 수 10개 초과 시 오래된 세션 정리
         prune_old_sessions()
     else:
         conn.close()
+
+
+def verify_and_delete_session(session_id: str, input_pw: str) -> tuple[bool, str]:
+    """
+    입력된 비밀번호가 세션의 삭제 비밀번호와 일치하는지 확인 후 세션을 삭제합니다.
+    """
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT delete_pw, nickname FROM sessions WHERE session_id = ?", (session_id,))
+    row = cursor.fetchone()
+
+    if not row:
+        conn.close()
+        return False, "존재하지 않는 세션입니다."
+
+    stored_pw, nickname = row[0], row[1]
+    if stored_pw and stored_pw != input_pw.strip():
+        conn.close()
+        return False, "삭제 비밀번호가 일치하지 않습니다."
+
+    cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
+    cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+    conn.commit()
+    conn.close()
+    logger.info("대화 세션 삭제 승인 완료: %s (작성자: %s)", session_id, nickname)
+    return True, "대화가 성공적으로 삭제되었습니다."
+
+
+@st.dialog("🗑️ 대화 삭제 (비밀번호 확인)")
+def open_delete_chat_dialog(session_id: str) -> None:
+    """대화 삭제를 위한 비밀번호 입력 확인 다이얼로그를 표시합니다."""
+    st.write("선택하신 대화 세션을 완전히 삭제하시겠습니까?")
+    st.caption("대화 등록 시 설정한 **삭제 비밀번호**를 입력해야 삭제가 처리됩니다.")
+    del_pw_input = st.text_input("삭제 비밀번호", type="password", key="chat_del_pw_input")
+
+    col_btn1, col_btn2 = st.columns(2)
+    with col_btn1:
+        if st.button("삭제 확인", use_container_width=True):
+            if not del_pw_input.strip():
+                st.error("삭제 비밀번호를 입력하세요.")
+            else:
+                success, msg = verify_and_delete_session(session_id, del_pw_input)
+                if success:
+                    st.success(msg)
+                    st.session_state["current_session_id"] = generate_new_session_id()
+                    st.rerun()
+                else:
+                    st.error(f"❌ {msg}")
+    with col_btn2:
+        if st.button("취소", use_container_width=True):
+            st.rerun()
 
 
 def load_session_messages(session_id: str) -> list[dict[str, str]]:
@@ -253,7 +317,7 @@ with st.sidebar:
 
     current_sid = st.session_state["current_session_id"]
     session_id_list = [s["session_id"] for s in all_sessions]
-    session_label_map = {s["session_id"]: f"{s['title']}" for s in all_sessions}
+    session_label_map = {s["session_id"]: f"{s['title']} ({s['nickname']})" for s in all_sessions}
 
     # 아직 메시지가 없는 신규 세션일 경우 임시 표시
     if current_sid not in session_id_list:
@@ -282,17 +346,29 @@ active_session_id = st.session_state["current_session_id"]
 current_messages = load_session_messages(active_session_id)
 dialogue_pair_count = len(current_messages) // 2
 
+# 활성 세션의 작성자 닉네임 탐색
+active_author = next(
+    (s["nickname"] for s in all_sessions if s["session_id"] == active_session_id),
+    st.session_state.get("nickname", "익명"),
+)
+
 # 페이지 제목 및 세션 현황
 st.title("💬 실시간 텍스트 채팅")
-col_info1, col_info2 = st.columns([3, 1])
+col_info1, col_info2, col_info3 = st.columns([3, 1.2, 0.9], vertical_alignment="center")
 with col_info1:
-    st.caption("깨끗한 순수 텍스트 대화를 지원하며, 한 세션당 최대 100개의 대화(질문+답변)가 보관됩니다.")
+    st.caption(f"작성자: **🏷️ {active_author}** | 세션당 최대 100개 대화 보관")
 with col_info2:
-    st.info(f"대화 수: **{dialogue_pair_count} / {MAX_CONVERSATIONS_PER_SESSION} 쌍**")
+    st.info(f"대화: **{dialogue_pair_count} / {MAX_CONVERSATIONS_PER_SESSION} 쌍**")
+with col_info3:
+    if any(s["session_id"] == active_session_id for s in all_sessions):
+        if st.button("🗑️ 삭제", use_container_width=True, help="비밀번호 확인 후 현재 대화를 삭제합니다."):
+            open_delete_chat_dialog(active_session_id)
 
 # 대화 내용 화면 렌더링
 for msg in current_messages:
     with st.chat_message(msg["role"]):
+        if msg["role"] == "user":
+            st.caption(f"🏷️ {active_author}")
         st.write(msg["content"])
 
 
