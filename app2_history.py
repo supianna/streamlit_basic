@@ -6,6 +6,10 @@
 import logging
 import sqlite3
 import streamlit as st
+from theme import apply_theme
+
+# 사이버 오로라 네온 테마 적용
+apply_theme()
 
 # 로깅 설정
 logging.basicConfig(

@@ -272,3 +272,4 @@ if interactive_prompt:
         st.markdown(interactive_prompt)
     with st.chat_message("assistant"):
         st.markdown(f"입력하신 메시지: **'{interactive_prompt}'**\n\n이 테마가 마음에 드시면 채팅창에 번호를 알려주세요!")
+
