@@ -1,5 +1,4 @@
 import base64
-from datetime import datetime
 import os
 import sqlite3
 from dotenv import load_dotenv
@@ -12,70 +11,34 @@ load_dotenv()
 DB_FILE = "chat_history.db"
 
 st.title("💬 OpenAI 멀티모달 채팅 (gpt-5.6-luna)")
-st.caption("이전 대화 불러오기, 팝업 드래그앤드롭 이미지/파일 첨부, SQLite 영구 저장을 지원하는 챗봇입니다.")
+st.caption("주고받은 모든 대화는 SQLite에 자동으로 순서대로 저장되며, 언제든 이어서 대화할 수 있습니다.")
 
 
 # ==============================================================================
-# SQLite 데이터베이스 관리 함수
+# SQLite 데이터베이스 관리 함수 (단일 대화 스트림 저장)
 # ==============================================================================
 def init_db():
+    """메시지 저장용 SQLite 테이블을 생성합니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    # 대화 세션 테이블
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS sessions (
-            session_id TEXT PRIMARY KEY,
-            title TEXT NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    # 메시지 테이블 (세션 ID와 연동)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            session_id TEXT DEFAULT 'default_session',
             role TEXT NOT NULL,
             content TEXT NOT NULL,
             files TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-    # 기존 테이블 호환성을 위한 session_id 컬럼 마이그레이션
-    cursor.execute("PRAGMA table_info(messages)")
-    columns = [col[1] for col in cursor.fetchall()]
-    if "session_id" not in columns:
-        cursor.execute("ALTER TABLE messages ADD COLUMN session_id TEXT DEFAULT 'default_session'")
     conn.commit()
     conn.close()
 
 
-def get_all_sessions():
+def load_all_messages():
+    """DB에 저장된 모든 대화 메시지를 시간순으로 불러옵니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("SELECT session_id, title, created_at FROM sessions ORDER BY created_at DESC")
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-
-def create_session(session_id: str, title: str):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT OR IGNORE INTO sessions (session_id, title) VALUES (?, ?)",
-        (session_id, title),
-    )
-    conn.commit()
-    conn.close()
-
-
-def load_messages_by_session(session_id: str):
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute(
-        "SELECT role, content, files FROM messages WHERE session_id = ? ORDER BY id ASC",
-        (session_id,),
-    )
+    cursor.execute("SELECT role, content, files FROM messages ORDER BY id ASC")
     rows = cursor.fetchall()
     conn.close()
     messages = []
@@ -89,36 +52,32 @@ def load_messages_by_session(session_id: str):
     return messages
 
 
-def save_message(session_id: str, role: str, content: str, files: str = ""):
+def save_message(role: str, content: str, files: str = ""):
+    """새로운 대화 메시지를 DB에 저장합니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO messages (session_id, role, content, files) VALUES (?, ?, ?, ?)",
-        (session_id, role, content, files),
+        "INSERT INTO messages (role, content, files) VALUES (?, ?, ?)",
+        (role, content, files),
     )
     conn.commit()
     conn.close()
 
 
-def delete_session(session_id: str):
+def clear_all_messages():
+    """모든 대화 내역을 삭제합니다."""
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-    cursor.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
+    cursor.execute("DELETE FROM messages")
     conn.commit()
     conn.close()
 
 
-# DB 초기화
+# DB 초기화 및 대화 내역 로드
 init_db()
 
-# 세션 상태 초기화
-if "current_session_id" not in st.session_state:
-    st.session_state.current_session_id = datetime.now().strftime("chat_%Y%m%d_%H%M%S")
-    create_session(st.session_state.current_session_id, f"대화 {datetime.now().strftime('%m/%d %H:%M')}")
-
 if "messages" not in st.session_state:
-    st.session_state.messages = load_messages_by_session(st.session_state.current_session_id)
+    st.session_state.messages = load_all_messages()
 
 # 첨부 대기 중인 이미지/파일 저장소
 if "pending_images" not in st.session_state:
@@ -172,7 +131,7 @@ def open_file_upload_dialog():
 
 
 # ==============================================================================
-# 사이드바 설정 (이전 대화 불러오기, API Key 및 모델)
+# 사이드바 설정 (API Key, 모델, 대화 관리)
 # ==============================================================================
 with st.sidebar:
     st.header("⚙️ 챗봇 설정")
@@ -219,54 +178,22 @@ with st.sidebar:
 
     st.divider()
 
-    # 3. 이전 채팅 내역 불러오기 & 세션 관리
-    st.subheader("📂 이전 대화 기록 관리")
+    # 3. 대화 내역 상태 및 전체 비우기
+    st.subheader("💬 대화 관리")
+    st.info(f"저장된 누적 대화: **{len(st.session_state.messages)}**개 메시지")
 
-    if st.button("➕ 새 대화 시작하기", use_container_width=True):
-        new_sid = datetime.now().strftime("chat_%Y%m%d_%H%M%S")
-        st.session_state.current_session_id = new_sid
-        create_session(new_sid, f"대화 {datetime.now().strftime('%m/%d %H:%M')}")
+    if st.button("🗑️ 대화 내용 전체 비우기", use_container_width=True):
+        clear_all_messages()
         st.session_state.messages = []
         st.session_state.pending_images = []
         st.session_state.pending_files = []
+        st.success("대화 내역이 모두 초기화되었습니다.")
         st.rerun()
 
-    # DB에 저장된 과거 대화 세션 목록
-    all_sessions = get_all_sessions()
-    if all_sessions:
-        session_dict = {f"{s[1]} ({s[0]})": s[0] for s in all_sessions}
-        selected_session_label = st.selectbox(
-            "불러올 이전 대화 선택",
-            options=list(session_dict.keys()),
-        )
-
-        col_load, col_del = st.columns(2)
-        with col_load:
-            if st.button("📥 불러오기", use_container_width=True):
-                target_sid = session_dict[selected_session_label]
-                st.session_state.current_session_id = target_sid
-                st.session_state.messages = load_messages_by_session(target_sid)
-                st.success("대화 내역을 불러왔습니다!")
-                st.rerun()
-
-        with col_del:
-            if st.button("🗑️ 세션 삭제", use_container_width=True):
-                target_sid = session_dict[selected_session_label]
-                delete_session(target_sid)
-                new_sid = datetime.now().strftime("chat_%Y%m%d_%H%M%S")
-                st.session_state.current_session_id = new_sid
-                create_session(new_sid, f"대화 {datetime.now().strftime('%m/%d %H:%M')}")
-                st.session_state.messages = []
-                st.rerun()
-    else:
-        st.caption("저장된 과거 대화가 없습니다.")
-
 
 # ==============================================================================
-# 기존 대화 히스토리 화면 출력
+# 기존 대화 내역 화면 출력
 # ==============================================================================
-st.info(f"현재 대화방: **{st.session_state.current_session_id}** (저장된 메시지: {len(st.session_state.messages)}개)")
-
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if "files" in msg and msg["files"]:
@@ -356,6 +283,7 @@ if user_prompt:
             st.image(img_bytes, width=280)
         st.write(user_prompt)
 
+    # 1. 세션 상태 및 SQLite에 저장
     st.session_state.messages.append({
         "role": "user",
         "content": user_prompt,
@@ -364,12 +292,12 @@ if user_prompt:
         "openai_content": openai_content,
     })
     save_message(
-        session_id=st.session_state.current_session_id,
         role="user",
         content=user_prompt,
         files=", ".join(user_file_names),
     )
 
+    # OpenAI API 전달용 메시지 변환
     api_messages = []
     for msg in st.session_state.messages:
         if msg["role"] == "user":
@@ -383,6 +311,7 @@ if user_prompt:
                 "content": msg["content"],
             })
 
+    # 어시스턴트 답변 스트리밍 렌더링
     with st.chat_message("assistant"):
         stream = client.chat.completions.create(
             model=model_name,
@@ -391,13 +320,12 @@ if user_prompt:
         )
         response_text = st.write_stream(stream)
 
+    # 2. 어시스턴트 답변 저장
     st.session_state.messages.append({
         "role": "assistant",
         "content": response_text,
     })
     save_message(
-        session_id=st.session_state.current_session_id,
         role="assistant",
         content=response_text,
     )
-
