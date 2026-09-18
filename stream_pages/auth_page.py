@@ -31,3 +31,4 @@ else:
     # 3. 로그아웃 (st.logout)
     if st.button("로그아웃", icon=":material/logout:"):
         st.logout()
+

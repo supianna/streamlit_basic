@@ -35,3 +35,4 @@ with tab1:
 
 with tab2:
     st.bar_chart(df.set_index("월별")[chart_col])
+

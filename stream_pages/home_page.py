@@ -19,9 +19,9 @@ st.subheader("🚀 주요 기능 바로가기")
 col_a, col_b = st.columns(2)
 
 with col_a:
-    st.page_link(r"stream_pages\navigation_page.py", label="🧭 네비게이션 API 실습 페이지", help="네비게이션 기능 상세 실습")
-    st.page_link(r"stream_pages\auth_page.py", label="🔐 Google 로그인 쇼케이스", help="사용자 인증 기능 확인")
+    st.page_link("navigation_page.py", label="🧭 네비게이션 API 실습 페이지", help="네비게이션 기능 상세 실습")
+    st.page_link("auth_page.py", label="🔐 Google 로그인 쇼케이스", help="사용자 인증 기능 확인")
 
 with col_b:
-    st.page_link(r"stream_pages\data_page.py", label="📊 데이터 분석 & 차트", help="데이터프레임 및 차트 시각화")
-    st.page_link(r"stream_pages\settings_page.py", label="⚙️ 환경설정 페이지", help="앱 환경설정 조작")
+    st.page_link("data_page.py", label="📊 데이터 분석 & 차트", help="데이터프레임 및 차트 시각화")
+    st.page_link("settings_page.py", label="⚙️ 환경설정 페이지", help="앱 환경설정 조작")

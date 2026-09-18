@@ -22,3 +22,4 @@ st.divider()
 if st.button("설정 저장", type="primary"):
     st.success(f"설정이 저장되었습니다! (테마: {app_theme}, 언어: {language})")
     st.toast("성공적으로 저장되었습니다.")
+

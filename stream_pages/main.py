@@ -4,11 +4,12 @@
 import streamlit as st
 
 # [1. 개별 페이지 정의 (st.Page)]
-home_page = st.Page(r"stream_pages\home_page.py", title="홈", icon="🏠", default=True)
-nav_page = st.Page(r"stream_pages\navigation_page.py", title="네비게이션 API", icon="🧭")
-auth_page = st.Page(r"stream_pages\auth_page.py", title="Google 인증", icon="🔐")
-data_page = st.Page(r"stream_pages\data_page.py", title="데이터 분석", icon="📊")
-settings_page = st.Page(r"stream_pages\settings_page.py", title="환경설정", icon="⚙️")
+# 메인 엔트리포인트(main.py)와 같은 폴더에 있으므로 상대 경로로 파일명 직접 지정
+home_page = st.Page("home_page.py", title="홈", icon="🏠", default=True)
+nav_page = st.Page("navigation_page.py", title="네비게이션 API", icon="🧭")
+auth_page = st.Page("auth_page.py", title="Google 인증", icon="🔐")
+data_page = st.Page("data_page.py", title="데이터 분석", icon="📊")
+settings_page = st.Page("settings_page.py", title="환경설정", icon="⚙️")
 
 # [2. 섹션별 그룹화 네비게이션 라우터 구성 (st.navigation)]
 pg = st.navigation(

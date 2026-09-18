@@ -26,25 +26,25 @@ col1, col2 = st.columns(2)
 with col1:
     st.subheader("내부 페이지 이동 링크")
     st.page_link(
-        r"stream_pages\home_page.py",
+        "home_page.py",
         label="🏠 홈 페이지로 이동",
         icon="🏠",
         use_container_width=True,
     )
     st.page_link(
-        r"stream_pages\auth_page.py",
+        "auth_page.py",
         label="🔐 Google 로그인 쇼케이스로 이동",
         icon="🔐",
         use_container_width=True,
     )
     st.page_link(
-        r"stream_pages\data_page.py",
+        "data_page.py",
         label="📊 데이터 분석 페이지로 이동",
         icon="📊",
         use_container_width=True,
     )
     st.page_link(
-        r"stream_pages\settings_page.py",
+        "settings_page.py",
         label="⚙️ 환경설정 페이지로 이동",
         icon="⚙️",
         use_container_width=True,
@@ -60,7 +60,7 @@ with col2:
         use_container_width=True,
     )
     st.page_link(
-        r"stream_pages\home_page.py",
+        "home_page.py",
         label="⛔ 비활성화 링크 (disabled=True)",
         icon="🔒",
         disabled=True,
@@ -82,20 +82,20 @@ col_switch1, col_switch2 = st.columns(2)
 with col_switch1:
     st.subheader("버튼 클릭 즉시 이동")
     if st.button("🚀 데이터 분석 페이지로 바로 가기", type="primary", use_container_width=True):
-        st.switch_page(r"stream_pages\data_page.py")
+        st.switch_page("data_page.py")
 
     if st.button("🔐 로그인 페이지로 바로 가기", use_container_width=True):
-        st.switch_page(r"stream_pages\auth_page.py")
+        st.switch_page("auth_page.py")
 
 with col_switch2:
     st.subheader("조건부 이동 시뮬레이션")
     dest_page = st.selectbox(
         "이동할 대상 페이지 선택",
         [
-            ("홈 페이지", r"stream_pages\home_page.py"),
-            ("데이터 분석", r"stream_pages\data_page.py"),
-            ("환경설정", r"stream_pages\settings_page.py"),
-            ("Google 인증", r"stream_pages\auth_page.py"),
+            ("홈 페이지", "home_page.py"),
+            ("데이터 분석", "data_page.py"),
+            ("환경설정", "settings_page.py"),
+            ("Google 인증", "auth_page.py"),
         ],
         format_func=lambda x: x[0],
     )
@@ -118,12 +118,12 @@ st.write(
 st.code("""# stream_pages/main.py (현재 적용된 멀티페이지 라우터 코드)
 import streamlit as st
 
-# [1. 개별 페이지 정의]
-home_page = st.Page(r"stream_pages\\home_page.py", title="홈", icon="🏠", default=True)
-nav_page = st.Page(r"stream_pages\\navigation_page.py", title="네비게이션 API", icon="🧭")
-auth_page = st.Page(r"stream_pages\\auth_page.py", title="Google 인증", icon="🔐")
-data_page = st.Page(r"stream_pages\\data_page.py", title="데이터 분석", icon="📊")
-settings_page = st.Page(r"stream_pages\\settings_page.py", title="환경설정", icon="⚙️")
+# [1. 개별 페이지 정의 (엔트리포인트와 동일 디렉토리이므로 파일명만 지정)]
+home_page = st.Page("home_page.py", title="홈", icon="🏠", default=True)
+nav_page = st.Page("navigation_page.py", title="네비게이션 API", icon="🧭")
+auth_page = st.Page("auth_page.py", title="Google 인증", icon="🔐")
+data_page = st.Page("data_page.py", title="데이터 분석", icon="📊")
+settings_page = st.Page("settings_page.py", title="환경설정", icon="⚙️")
 
 # [2. 섹션별 그룹화 네비게이션 라우터 정의]
 pg = st.navigation(
