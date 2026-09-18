@@ -30,6 +30,8 @@ chat_history.db
 *.cert
 *.crt
 credentials.json
+client_secret*.json
+.streamlit/*.json
 
 # Logs & Temporary files
 *.log
